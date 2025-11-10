@@ -1,0 +1,52 @@
+# --- Python ---
+# Byte-compiled / optimized / C extensions
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.egg-info/
+*.dist-info/
+
+# --- Virtual Environments ---
+# Common names for virtual environments
+venv/
+.venv/
+env/
+.env/
+
+# --- Trained Models ---
+# Ignore all PyTorch checkpoint files
+*.pth
+*.pth.tar
+
+# --- Data & Output Files ---
+# Ignore large data files you generate
+*.parquet
+# Ignore output from predict.py
+generated_output.txt
+
+# --- Jupyter Notebooks ---
+# Ignore checkpoint files
+.ipynb_checkpoints
+
+# --- OS-specific Files ---
+# macOS
+.DS_Store
+.AppleDouble
+
+# Windows
+Thumbs.db
+ehthumbs.db
+
+# --- IDEs & Editors ---
+# VSCode
+.vscode/
+
+# PyCharm / IntelliJ
+.idea/
+
+# --- Other ---
+# Local environment variables
+.env
+# File for full datasets to be used for splits
+data/datasets/*

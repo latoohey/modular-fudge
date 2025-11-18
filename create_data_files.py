@@ -3,108 +3,111 @@ from sklearn.model_selection import train_test_split
 import os
 
 # --- Configuration ---
-# 1. Set your input file paths
-FILE_1_PATH = 'data\datasets\sampled_encyclopedia_chunks.csv'
-FILE_2_PATH = 'data\datasets\sampled_holmes_chunks.csv'
+# 1. Set your input file path (The single CSV with all data)
+INPUT_CSV = 'encyclopedia_dataset.csv' 
 
-FILE_1_OUTPUT_NAME = 'encyclopedia'
-FILE_2_OUTPUT_NAME = 'holmes'
+# 2. Set column names
+TEXT_COLUMN = 'text'
+LABEL_COLUMN = 'label'  # <--- The column containing category/label names
 
-DATA_PATH = 'data\splits'  # Directory to save output files
-
-# 2. Set the name of the column containing your text
-TEXT_COLUMN_NAME = 'text'
-
-
-# 3. Set your sampling and split parameters
-NUM_SAMPLES = 1500
+# 3. Set split parameters
 TEST_SPLIT_SIZE = 0.20  # 80% train, 20% test
-RANDOM_SEED = 24601      # Ensures your splits are reproducible
+RANDOM_SEED = 42
+
+# 4. Output directory setup
+BASE_OUTPUT_DIR = 'data'
 # ---------------------
 
-def process_csv(input_path, output_name, text_col, n_samples, test_size, seed):
+def process_dataset(input_path, text_col, label_col, test_size, seed):
     """
-    Reads a CSV, samples it, splits it, and writes train/test .txt files.
+    Reads a single CSV, identifies unique labels, splits data per label,
+    and organizes them into train/test folders.
     """
-    print(f"--- Processing {input_path} ---")
+    print(f"--- Reading {input_path} ---")
     
     try:
-        # Read *only* the required text column to save memory
-        df = pd.read_csv(input_path, usecols=[text_col])
-    except FileNotFoundError:
-        print(f"Error: File not found at {input_path}. Skipping.")
-        return
-    except ValueError as e:
-        # This catches if the 'text' column doesn't exist
-        print(f"Error reading {input_path}: {e}. Make sure '{text_col}' column exists. Skipping.")
-        return
-    except Exception as e:
-        print(f"An unexpected error occurred reading {input_path}: {e}. Skipping.")
-        return
-
-    # Handle files with fewer rows than desired samples
-    n_rows = len(df)
-    if n_rows < n_samples:
-        print(f"Warning: {input_path} only has {n_rows} rows. Using all of them.")
-        actual_samples = n_rows
-    else:
-        actual_samples = n_samples
-
-    # Get the random sample of text data
-    # We drop any rows where the text might be missing (NaN)
-    sampled_data = df.dropna(subset=[text_col]).sample(
-        n=actual_samples, 
-        random_state=seed
-    )
-
-    # Split the data into train and test sets
-    train_texts, test_texts = train_test_split(
-        sampled_data[text_col],
-        test_size=test_size,
-        random_state=seed
-    )
-
-    # Define output filenames
-    file = f"{output_name}.txt"
-    
-    train_file_path = os.path.join(DATA_PATH, 'train', file)
-    test_file_path = os.path.join(DATA_PATH, 'test', file)
-
-    # Write the train file
-    try:
-        with open(train_file_path, 'w', encoding='utf-8') as f:
-            for line in train_texts:
-                f.write(str(line) + '\n')
-        print(f"Created {file} at {train_file_path} with {len(train_texts)} lines.")
-
-        # Write the test file
-        with open(test_file_path, 'w', encoding='utf-8') as f:
-            for line in test_texts:
-                f.write(str(line) + '\n')
-        print(f"Created {file} at {test_file_path} with {len(test_texts)} lines.")
+        # Load the dataset
+        df = pd.read_csv(input_path)
         
-    except IOError as e:
-        print(f"Error writing file: {e}")
+        # Basic validation
+        if text_col not in df.columns or label_col not in df.columns:
+            raise ValueError(f"Columns '{text_col}' and '{label_col}' must exist in CSV.")
+            
+        # Drop rows where text is missing
+        df = df.dropna(subset=[text_col])
+        
+        # Identify unique labels (categories)
+        unique_labels = df[label_col].unique()
+        print(f"Found {len(unique_labels)} unique labels: {list(unique_labels)}")
+        
+    except Exception as e:
+        print(f"Error loading file: {e}")
+        return
+
+    # Create Base Train/Test Directories
+    train_root = os.path.join(BASE_OUTPUT_DIR, 'train')
+    test_root = os.path.join(BASE_OUTPUT_DIR, 'test')
     
-    print(f"--- Finished {input_path} ---\n")
+    # Iterate over each unique label to process them individually
+    for label in unique_labels:
+        print(f"\nProcessing Label: '{label}'")
+        
+        # Filter data for this specific label
+        label_data = df[df[label_col] == label]
+        
+        # Check if we have enough data to split
+        if len(label_data) < 2:
+            print(f"  Warning: Not enough data to split for '{label}'. Skipping.")
+            continue
+
+        # Split into train and test
+        train_texts, test_texts = train_test_split(
+            label_data[text_col],
+            test_size=test_size,
+            random_state=seed
+        )
+
+        # Create label-specific subdirectories
+        # Example: dataset_output/train/mystery/
+        train_label_dir = os.path.join(train_root, str(label))
+        test_label_dir = os.path.join(test_root, str(label))
+        
+        os.makedirs(train_label_dir, exist_ok=True)
+        os.makedirs(test_label_dir, exist_ok=True)
+
+        # Define output filenames (standardized name inside the folder)
+        train_file = os.path.join(train_label_dir, f'{label}.txt')
+        test_file = os.path.join(test_label_dir, f'{label}.txt')
+
+        # Helper function to write list to file
+        def write_txt(filepath, data_series):
+            try:
+                with open(filepath, 'w', encoding='utf-8') as f:
+                    for line in data_series:
+                        # Convert to string and strip newlines to prevent double spacing
+                        clean_line = str(line).replace('\n', ' ').strip()
+                        if clean_line:
+                            f.write(clean_line + '\n')
+                return True
+            except IOError as e:
+                print(f"  Error writing {filepath}: {e}")
+                return False
+
+        # Write the files
+        if write_txt(train_file, train_texts):
+            print(f"  Saved {len(train_texts)} lines to {train_file}")
+            
+        if write_txt(test_file, test_texts):
+            print(f"  Saved {len(test_texts)} lines to {test_file}")
+
+    print(f"\n--- Processing Complete. Check folder: '{BASE_OUTPUT_DIR}' ---")
 
 # --- Main execution ---
 if __name__ == "__main__":
-    
-    # Define the files to process
-    files_to_process = [
-        (FILE_1_PATH, FILE_1_OUTPUT_NAME),
-        (FILE_2_PATH, FILE_2_OUTPUT_NAME)
-    ]
-    
-    for f_path, f_name in files_to_process:
-        process_csv(
-            input_path=f_path,
-            output_name=f_name,
-            text_col=TEXT_COLUMN_NAME,
-            n_samples=NUM_SAMPLES,
-            test_size=TEST_SPLIT_SIZE,
-            seed=RANDOM_SEED
-        )
-    
-    print("All files processed.")
+    process_dataset(
+        input_path=INPUT_CSV,
+        text_col=TEXT_COLUMN,
+        label_col=LABEL_COLUMN,
+        test_size=TEST_SPLIT_SIZE,
+        seed=RANDOM_SEED
+    )

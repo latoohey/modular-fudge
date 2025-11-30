@@ -270,7 +270,7 @@ def main():
     seed_everything(SEED)
 
     args = setup()
-    login(token=args.hf_token)
+    login(token=HF_TOKEN)
 
     # Hard-code the task
     args.task = 'transfer'
@@ -436,7 +436,6 @@ if __name__ == '__main__':
     training_args = SimpleNamespace(
         data_dir=DATA_DIR,
         save_dir=SAVE_DIR,
-        hf_token=HF_TOKEN,
         ckpt=CKPT,
         batch_size=BATCH_SIZE,
         epochs=EPOCHS,
@@ -464,7 +463,7 @@ if __name__ == '__main__':
         training_args.on_colab = True
         from google.colab import drive, userdata
         drive.mount('/content/drive')
-        training_args.hf_token = userdata.get('HF_TOKEN')
+        HF_TOKEN = userdata.get('HF_TOKEN')
         training_args.save_dir = "/content/drive/My Drive/"
 
 

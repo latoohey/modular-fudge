@@ -1,27 +1,29 @@
-import os
-import time
-import torch
-
 def save_checkpoint(state, save_path):
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     torch.save(state, save_path)
-
+    print(f"Checkpoint saved to {save_path}")
+    
 def num_params(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-def pad_mask(lengths: torch.LongTensor) -> torch.ByteTensor:
+def pad_mask(lengths: torch.LongTensor) -> torch.BoolTensor:
     """
     Create a mask of batch x seq where 1 is for non-padding
     and 0 is for padding.
     """
-    max_seqlen = torch.max(lengths)
-    # (max_seqlen, batch_size)
-    expanded_lengths = lengths.unsqueeze(0).repeat((max_seqlen, 1))
-    # (max_seqlen, batch_size)
-    indices = torch.arange(max_seqlen).unsqueeze(1).repeat((1, lengths.size(0))).to(lengths.device)
-    
-    # (max_seqlen, batch_size) -> (batch_size, max_seqlen)
-    return (expanded_lengths > indices).permute(1, 0)
+    device = lengths.device
+    max_len = lengths.max().item() # .item() converts Tensor to int
+
+    # 1. Create range [0, 1, 2, ... max_len-1]
+    # Shape: (1, max_len)
+    ids = torch.arange(max_len, device=device).unsqueeze(0)
+
+    # 2. Compare with lengths
+    # Shape: (batch_size, 1)
+    # Broadcasting: (1, max_len) < (batch_size, 1) -> (batch_size, max_len)
+    mask = ids < lengths.unsqueeze(1)
+
+    return mask
 
 class ProgressMeter(object):
     def __init__(self, num_batches, meters, prefix=""):
@@ -39,7 +41,7 @@ class ProgressMeter(object):
         num_digits = len(str(num_batches // 1))
         fmt = '{:' + str(num_digits) + 'd}'
         return '[' + fmt + '/' + fmt.format(num_batches) + ']'
-
+    
 class AverageMeter(object):
     def __init__(self, name, fmt=':f'):
         self.name = name

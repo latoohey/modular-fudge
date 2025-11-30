@@ -101,67 +101,114 @@ returning the logit from *only* the single, final, unpadded token.
           in the batch).
 """
 
-class LSTMClassifier(nn.Module):
+class MambaClassifier(nn.Module):
 
     def __init__(self, args, vocab_size, pad_id):
         """
-        Initializes the LSTM model.
+        Initializes the Mamba model.
 
         Args:
-            args: The full ArgumentParser namespace. Reads
-                  `args.lstm_hidden_dim` and `args.lstm_num_layers`.
+            args: The full ArgumentParser namespace. Reads:
+                  - `args.mamba_d_model` (hidden dimension, default 256)
+                  - `args.mamba_d_state` (SSM state dimension, default 16)
+                  - `args.mamba_d_conv` (local convolution width, default 4)
+                  - `args.mamba_expand` (expansion factor, default 2)
+                  - `args.mamba_num_layers` (number of Mamba blocks, default 4)
+                  - `args.mamba_dropout` (dropout rate, default 0.1)
             vocab_size: The total vocabulary size for the embedding layer.
         """
         super().__init__()
 
-        # --- CRITICAL CHANGE ---
-        # Using `vocab_size` (e.g., 32000) is robust and correct.
-        # Using `tokenizer_pad_id + 1` was brittle and would fail
-        # with many tokenizers where the pad ID is not the highest ID.
+        # Get hyperparameters from args with defaults
+        self.d_model = getattr(args, 'mamba_d_model', 256)
+        self.d_state = getattr(args, 'mamba_d_state', 16)
+        self.d_conv = getattr(args, 'mamba_d_conv', 4)
+        self.expand = getattr(args, 'mamba_expand', 2)
+        self.num_layers = getattr(args, 'mamba_num_layers', 4)
+        self.dropout_rate = getattr(args, 'mamba_dropout', 0.1)
+
+        # Embedding layer
         self.embed = nn.Embedding(
             num_embeddings=vocab_size,
-            embedding_dim=args.lstm_hidden_dim,
+            embedding_dim=self.d_model,
             padding_idx=pad_id  # Use the REAL pad ID
         )
-        # --- End of Change ---
 
-        self.rnn = nn.LSTM(
-            args.lstm_hidden_dim,
-            args.lstm_hidden_dim,
-            num_layers=args.lstm_num_layers,
-            bidirectional=False,
-            dropout=0.5,
-            batch_first=True # Makes the permute/transpose logic simpler
-        )
-        self.out_linear = nn.Linear(args.lstm_hidden_dim, 1)
+        # Dropout for regularization
+        self.dropout = nn.Dropout(self.dropout_rate)
 
-    def forward(self, inputs, lengths):
+        # Stack of Mamba blocks
+        self.mamba_blocks = nn.ModuleList([
+            Mamba(
+                d_model=self.d_model,    # Model dimension
+                d_state=self.d_state,    # SSM state expansion factor
+                d_conv=self.d_conv,      # Local convolution width
+                expand=self.expand,      # Block expansion factor
+            )
+            for _ in range(self.num_layers)
+        ])
+
+        # Layer normalization between blocks
+        self.layer_norms = nn.ModuleList([
+            nn.LayerNorm(self.d_model)
+            for _ in range(self.num_layers)
+        ])
+
+        # Final layer norm before output
+        self.final_norm = nn.LayerNorm(self.d_model)
+
+        # Output projection to single logit per token
+        self.out_linear = nn.Linear(self.d_model, 1)
+
+        # Initialize weights
+        self._init_weights()
+
+    def _init_weights(self):
+        """Initialize weights with sensible defaults."""
+        # Initialize embeddings
+        nn.init.normal_(self.embed.weight, mean=0.0, std=self.d_model ** -0.5)
+        if self.embed.padding_idx is not None:
+            nn.init.constant_(self.embed.weight[self.embed.padding_idx], 0)
+
+        # Initialize output projection
+        nn.init.xavier_uniform_(self.out_linear.weight)
+        nn.init.constant_(self.out_linear.bias, 0)
+
+    def forward(self, inputs, lengths=None):
         """
-        Internal forward pass for the LSTM.
-        Requires `lengths` for sequence packing.
+        Optimized Mamba forward pass.
+        We do NOT mask internally. We allow Mamba to process padding tokens
+        naturally to preserve state dynamics. The training loop handles
+        ignoring the resulting padding outputs.
         """
-        # (batch_size, seq_len, hidden_dim)
-        embedded_inputs = self.embed(inputs)
+        # Embed tokens: (batch_size, seq_len, d_model)
+        x = self.embed(inputs)
+        x = self.dropout(x)
 
-        # Pack sequence for efficient RNN processing
-        packed_inputs = pack_padded_sequence(
-            embedded_inputs,
-            lengths.cpu(), # Must be on CPU
-            batch_first=True,
-            enforce_sorted=False
-        )
+        # CRITICAL: Mamba kernels require contiguous memory layout
+        x = x.contiguous()
 
-        # rnn_output is (packed_batch, hidden_dim)
-        rnn_output, _ = self.rnn(packed_inputs)
+        # Process through Mamba blocks
+        for mamba_block, layer_norm in zip(self.mamba_blocks, self.layer_norms):
+            # Pre-norm architecture
+            residual = x
+            x = layer_norm(x)
 
-        # Unpack: (batch_size, seq_len, hidden_dim)
-        rnn_output, _ = pad_packed_sequence(
-            rnn_output,
-            batch_first=True
-        )
+            # Block
+            x = mamba_block(x)
 
-        # (batch_size, seq_len)
-        return self.out_linear(rnn_output).squeeze(2)
+            # Residual connection
+            # NOTE: We removed "if mask is not None: x = x * mask"
+            # to allow correct State Space Model evolution.
+            x = residual + self.dropout(x)
+
+        # Final normalization
+        x = self.final_norm(x)
+
+        # Project to logits: (batch_size, seq_len)
+        scores = self.out_linear(x).squeeze(-1)
+
+        return scores
 
     # ---
     # --- Adapter Methods (The "Contract") ---
@@ -171,8 +218,16 @@ class LSTMClassifier(nn.Module):
         """
         Adapter for training.
         Unpacks batch, calls `self.forward`, and returns all scores.
+
+        Args:
+            batch: The raw, collated batch from the DataLoader.
+                   Typically [inputs, lengths, classification_targets]
+
+        Returns:
+            scores: torch.Tensor of shape (batch_size, seq_len)
+            targets: torch.Tensor of shape (batch_size,)
         """
-        # Unpack the batch as needed *by this model*
+        # Unpack the batch
         inputs, lengths, classification_targets = batch
 
         # Move tensors to the model's device
@@ -180,33 +235,40 @@ class LSTMClassifier(nn.Module):
         lengths = lengths.to(self.embed.weight.device)
         classification_targets = classification_targets.to(self.embed.weight.device)
 
-        # Call this model's specific forward pass
+        # Call forward pass
         scores = self.forward(inputs, lengths)
 
-        # Return what the training loop needs
+        # Return scores and targets
         return scores, classification_targets
 
     def get_final_scores(self, batch):
         """
         Adapter for evaluation.
         Unpacks batch, calls `self.forward`, and returns final logit.
+
+        Args:
+            batch: The raw, collated batch from the DataLoader.
+
+        Returns:
+            last_logits: torch.Tensor of shape (batch_size,)
+                        The logit from the last real token for each item.
         """
-        # We need all 3 components from the batch
+        # Unpack the batch
         inputs, lengths, _ = batch
 
         # Move tensors to the model's device
         inputs = inputs.to(self.embed.weight.device)
         lengths = lengths.to(self.embed.weight.device)
 
-        # Call this model's specific forward pass
+        # Call forward pass
         # scores shape: (batch_size, seq_len)
         scores = self.forward(inputs, lengths)
 
-        # Find the index of the last token
+        # Find the index of the last token for each sequence
         # Shape: (batch_size,)
         last_indices = (lengths - 1).long()
 
-        # Gather the specific scores from those last indices
+        # Gather the scores from the last valid position
         # Shape: (batch_size, 1) -> (batch_size,)
         last_logits = scores.gather(
             1, last_indices.unsqueeze(1)

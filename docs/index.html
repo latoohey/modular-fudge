@@ -1,308 +1,500 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FUDGE Generator Demo</title>
-    <style>
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-            max-width: 95%; /* WIDER FOR PRESENTATION */
-            margin: 2rem auto; 
-            padding: 0 1rem; 
-            background-color: #f4f4f9; 
-            color: #333; 
-        }
-        
-        /* LAYOUT GRID */
-        .app-layout {
-            display: grid;
-            grid-template-columns: 1fr 2fr; /* 1/3 Left, 2/3 Right */
-            gap: 2rem;
-            align-items: start; /* Ensures left column doesn't stretch vertically */
-        }
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>FUDGE Generator Demo</title>
+        <style>
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                Helvetica, Arial, sans-serif;
+                max-width: 95%; /* WIDER FOR PRESENTATION */
+                margin: 2rem auto;
+                padding: 0 1rem;
+                background-color: #f4f4f9;
+                color: #333;
+            }
 
-        /* Sticky Sidebar for Controls */
-        .controls-wrapper {
-            position: sticky;
-            top: 2rem; /* Sticks 2rem from top of window */
-        }
+            /* LAYOUT GRID */
+            .app-layout {
+                display: grid;
+                grid-template-columns: 1fr 2fr; /* 1/3 Left, 2/3 Right */
+                gap: 2rem;
+                align-items: start; /* Ensures left column doesn't stretch vertically */
+            }
 
-        /* Card Styles */
-        .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 1.5rem; }
-        
-        /* Inputs */
-        label { display: block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.05em; color: #555; }
-        input[type="text"], textarea { width: 100%; padding: 0.8rem; margin-bottom: 1rem; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; box-sizing: border-box; }
-        textarea { height: 100px; resize: vertical; font-family: monospace; }
-        
-        /* Button */
-        button { background-color: #2563eb; color: white; border: none; padding: 0.8rem 1.5rem; font-size: 1rem; font-weight: 600; border-radius: 6px; cursor: pointer; transition: background 0.2s; width: 100%; }
-        button:hover { background-color: #1d4ed8; }
-        button:disabled { background-color: #93c5fd; cursor: not-allowed; }
-        
-        /* Stop button specific */
-        button.stop-mode { background-color: #dc2626; }
-        button.stop-mode:hover { background-color: #b91c1c; }
+            /* Sticky Sidebar for Controls */
+            .controls-wrapper {
+                position: sticky;
+                top: 2rem; /* Sticks 2rem from top of window */
+            }
 
-        /* TOGGLE SWITCHES */
-        .toggle-switch-container {
-            display: flex;
-            border-radius: 5px;
-            overflow: hidden;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            margin-bottom: 1rem; /* Added spacing */
-        }
+            /* Card Styles */
+            .card {
+                background: white;
+                padding: 2rem;
+                border-radius: 12px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                margin-bottom: 1.5rem;
+            }
 
-        .toggle-switch-container input[type="radio"] { display: none; }
+            /* Inputs */
+            label {
+                display: block;
+                margin-bottom: 0.5rem;
+                font-weight: 600;
+                font-size: 0.9rem;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                color: #555;
+            }
+            input[type="text"],
+            textarea {
+                width: 100%;
+                padding: 0.8rem;
+                margin-bottom: 1rem;
+                border: 1px solid #ddd;
+                border-radius: 6px;
+                font-size: 1rem;
+                box-sizing: border-box;
+            }
+            textarea {
+                height: 100px;
+                resize: vertical;
+                font-family: monospace;
+            }
 
-        .toggle-switch-container label {
-            flex: 1; 
-            padding: 10px 15px;
-            text-align: center;
-            cursor: pointer;
-            background-color: #f0f0f0;
-            color: #333;
-            transition: background-color 0.3s ease, color 0.3s ease;
-            position: relative; /* FIXED: Keeps the ::after bar inside */
-        }
+            /* Button */
+            button {
+                background-color: #2563eb;
+                color: white;
+                border: none;
+                padding: 0.8rem 1.5rem;
+                font-size: 1rem;
+                font-weight: 600;
+                border-radius: 6px;
+                cursor: pointer;
+                transition: background 0.2s;
+                width: 100%;
+            }
+            button:hover {
+                background-color: #1d4ed8;
+            }
+            button:disabled {
+                background-color: #93c5fd;
+                cursor: not-allowed;
+            }
 
-        .toggle-switch-container input[type="radio"]:checked + label {
-            background-color: #007bff;
-            color: #fff;
-        }
+            /* Stop button specific */
+            button.stop-mode {
+                background-color: #dc2626;
+            }
+            button.stop-mode:hover {
+                background-color: #b91c1c;
+            }
 
-        .toggle-switch-container input[type="radio"]:checked + label::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 3px;
-            background-color: #0056b3;
-        }
+            /* TOGGLE SWITCHES */
+            .toggle-switch-container {
+                display: flex;
+                border-radius: 5px;
+                overflow: hidden;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+                margin-bottom: 1rem; /* Added spacing */
+            }
 
-        /* OUTPUT HISTORY STYLES */
-        #history-container {
-            display: flex;
-            flex-direction: column; /* Changed to column (newest bottom) or column-reverse (newest top) */
-            gap: 1.5rem;
-        }
+            .toggle-switch-container input[type="radio"] {
+                display: none;
+            }
 
-        .result-card {
-            background: white;
-            padding: 2rem; /* More padding for readability */
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            border: 1px solid #e5e7eb;
-            animation: fadeIn 0.3s ease-in;
-        }
+            .toggle-switch-container label {
+                flex: 1;
+                padding: 10px 15px;
+                text-align: center;
+                cursor: pointer;
+                background-color: #f0f0f0;
+                color: #333;
+                transition: background-color 0.3s ease, color 0.3s ease;
+                position: relative; /* FIXED: Keeps the ::after bar inside */
+            }
 
-        .result-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 1px solid #eee;
-        }
+            .toggle-switch-container input[type="radio"]:checked + label {
+                background-color: #007bff;
+                color: #fff;
+            }
 
-        .model-badge {
-            background-color: #e0f2fe;
-            color: #0369a1;
-            padding: 0.25rem 0.75rem;
-            border-radius: 999px;
-            font-size: 0.8rem;
-            font-weight: 700;
-            text-transform: uppercase;
-        }
+            .toggle-switch-container input[type="radio"]:checked + label::after {
+                content: "";
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                width: 100%;
+                height: 3px;
+                background-color: #0056b3;
+            }
 
-        /* TYPOGRAPHY UPDATES FOR PRESENTATION */
-        .generated-text {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; /* SANS-SERIF */
-            font-size: 1.25rem; /* BIGGER TEXT */
-            line-height: 1.75;  /* MORE SPACING */
-            color: #111;
-            white-space: pre-wrap;
-        }
+            /* OUTPUT HISTORY STYLES */
+            #history-container {
+                display: flex;
+                flex-direction: column; /* Changed to column (newest bottom) or column-reverse (newest top) */
+                gap: 1.5rem;
+            }
 
-        .delete-btn {
-            background: transparent;
-            color: #9ca3af;
-            width: auto;
-            padding: 0;
-            font-size: 1.5rem;
-            line-height: 1;
-        }
-        .delete-btn:hover { color: #dc2626; background: transparent; }
+            .result-card {
+                background: white;
+                padding: 2rem; /* More padding for readability */
+                border-radius: 12px;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                border: 1px solid #e5e7eb;
+                animation: fadeIn 0.3s ease-in;
+            }
 
-        /* Blinking Cursor Effect */
-        .cursor::after { content: '▋'; color: #2563eb; animation: blink 1s step-start infinite; }
-        @keyframes blink { 50% { opacity: 0; } }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+            .result-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 1rem;
+                padding-bottom: 0.5rem;
+                border-bottom: 1px solid #eee;
+            }
 
-        .hidden { display: none; }
-        .error { color: #dc2626; font-weight: bold; margin-top: 1rem; }
-        .config-section { border-bottom: 1px solid #eee; padding-bottom: 1rem; margin-bottom: 1rem; }
+            .model-badge {
+                background-color: #e0f2fe;
+                color: #0369a1;
+                padding: 0.25rem 0.75rem;
+                border-radius: 999px;
+                font-size: 0.8rem;
+                font-weight: 700;
+                text-transform: uppercase;
+            }
 
-        /* Responsive Breakpoint for Mobile (Stacked) */
-        @media (max-width: 768px) {
-            .app-layout { grid-template-columns: 1fr; }
-            .controls-wrapper { position: static; }
-        }
-    </style>
-</head>
-<body>
+            /* TYPOGRAPHY UPDATES FOR PRESENTATION */
+            .generated-text {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                Helvetica, Arial, sans-serif; /* SANS-SERIF */
+                font-size: 1.25rem; /* BIGGER TEXT */
+                line-height: 1.75; /* MORE SPACING */
+                color: #111;
+                white-space: pre-wrap;
+            }
 
-    <div class="app-layout">
-        
+            .delete-btn, .highlight-btn {
+                background: transparent;
+                color: #9ca3af;
+                width: auto;
+                padding: 0;
+                line-height: 1;
+            }
+            .delete-btn {
+                font-size: 1.5rem;
+            }
+            .delete-btn:hover {
+                color: #dc2626;
+                background: transparent;
+            }
+
+            .highlight-btn:hover {
+                color: #006400;
+                background: transparent;
+            }
+
+            /* Blinking Cursor Effect */
+            .cursor::after {
+                content: "▋";
+                color: #2563eb;
+                animation: blink 1s step-start infinite;
+            }
+            @keyframes blink {
+                50% {
+                opacity: 0;
+                }
+            }
+            @keyframes fadeIn {
+                from {
+                opacity: 0;
+                transform: translateY(10px);
+                }
+                to {
+                opacity: 1;
+                transform: translateY(0);
+                }
+            }
+
+            .hidden {
+                display: none;
+            }
+            .error {
+                color: #dc2626;
+                font-weight: bold;
+                margin-top: 1rem;
+            }
+            .config-section {
+                border-bottom: 1px solid #eee;
+                padding-bottom: 1rem;
+                margin-bottom: 1rem;
+            }
+
+            /* Responsive Breakpoint for Mobile (Stacked) */
+            @media (max-width: 768px) {
+                .app-layout {
+                grid-template-columns: 1fr;
+                }
+                .controls-wrapper {
+                position: static;
+                }
+            }
+
+            .highlight .highlight-unique {
+                background-color: #D1FFBD;
+                color: #006400;
+                font-weight: bold;
+                padding: 0 2px;
+                border-radius: 3px;
+            }
+
+            .btn-container {
+                display: flex;
+                flex-direction: row;
+                justify-content: space-between;
+                width: 20%
+            }
+        </style>
+    </head>
+    <body>
+        <div class="app-layout">
         <div class="controls-wrapper">
             <div class="card">
-                <div class="config-section">
-                    <details>
-                        <summary><label for="api-url">API URL</label></summary>
-                        <input type="text" id="api-url" placeholder="https://xxxx.ngrok-free.app">
-                    </details>
-                </div>
-                <div class="config-section">
-                    <label for="lambda-val">Lambda Value</label>
-                    <input type="text" id="lambda-val" placeholder="1.0" value="1.0">
-                </div>
+            <div class="config-section">
+                <details>
+                <summary><label for="api-url">API URL</label></summary>
+                <input
+                    type="text"
+                    id="api-url"
+                    placeholder="https://xxxx.ngrok-free.app"
+                />
+                </details>
+            </div>
+            <div class="config-section">
+                <label for="lambda-val">Lambda Value</label>
+                <input type="text" id="lambda-val" placeholder="1.0" value="1.0" />
+            </div>
 
-                <div class="toggle-switch-container">
-                    <input type="radio" id="option-llama" name="model-selection" value="llama" checked>
-                    <label for="option-llama">LLama 3.2 3B</label>
-                    
-                    <input type="radio" id="option-lstm" name="model-selection" value="lstm_2_256">
-                    <label for="option-lstm">LSTM</label>
-                    
-                    <input type="radio" id="option-mamba" name="model-selection" value="mamba_128_4_16_1">
-                    <label for="option-mamba">Mamba</label>
-                </div>
+            <div class="toggle-switch-container">
+                <input
+                type="radio"
+                id="option-llama"
+                name="model-selection"
+                value="llama"
+                checked
+                />
+                <label for="option-llama">LLama 3.2 3B</label>
 
-                <label for="prompt">Prompt</label>
-                <textarea id="prompt"></textarea>
-                
-                <button id="generate-btn">Generate Text</button>
-                <div id="error-msg" class="error"></div>
+                <input
+                type="radio"
+                id="option-lstm"
+                name="model-selection"
+                value="lstm_2_256"
+                />
+                <label for="option-lstm">LSTM</label>
+
+                <input
+                type="radio"
+                id="option-mamba"
+                name="model-selection"
+                value="mamba_128_4_16_1"
+                />
+                <label for="option-mamba">Mamba</label>
+            </div>
+
+            <label for="prompt">Prompt</label>
+            <textarea id="prompt"></textarea>
+
+            <button id="generate-btn">Generate Text</button>
+            <div id="error-msg" class="error"></div>
             </div>
         </div>
 
-        <div id="history-container">
-            </div>
+        <div id="history-container"></div>
+        </div>
 
-    </div>
+        <script>
+            const generateBtn = document.getElementById('generate-btn');
+            const errorDiv = document.getElementById('error-msg');
+            const urlInput = document.getElementById('api-url');
+            const promptInput = document.getElementById('prompt');
+            const historyContainer = document.getElementById('history-container');
 
-    <script>
-        const generateBtn = document.getElementById('generate-btn');
-        const errorDiv = document.getElementById('error-msg');
-        const urlInput = document.getElementById('api-url');
-        const promptInput = document.getElementById('prompt');
-        const historyContainer = document.getElementById('history-container');
+            let controller = null;
 
-        let controller = null;
+            const sendPrompt = async () => {
+                if (controller) {
+                    controller.abort();
+                    controller = null;
+                    return;
+                }
 
-        generateBtn.addEventListener('click', async () => {
-            if (controller) {
-                controller.abort();
-                controller = null;
-                return;
-            }
+                const baseUrl = urlInput.value.replace(/\/$/, "");
+                if (!baseUrl) { alert("Please enter the Ngrok URL!"); return; }
 
-            const baseUrl = urlInput.value.replace(/\/$/, ""); 
-            if (!baseUrl) { alert("Please enter the Ngrok URL!"); return; }
-            
-            let lambdaVal = parseFloat(document.getElementById('lambda-val').value) || 1.0;
-            const prompt = promptInput.value;
+                let lambdaVal = parseFloat(document.getElementById('lambda-val').value) || 1.0;
+                const prompt = promptInput.value;
 
-            let selectedModel = "Unknown Model"; 
-            let selectedModelValue = "";
-            
-            const selectedModelOption = document.querySelector('input[name="model-selection"]:checked');
-            if (selectedModelOption) {
-                selectedModelValue = selectedModelOption.value;
-                const labelElement = document.querySelector(`label[for="${selectedModelOption.id}"]`);
-                selectedModel = labelElement ? labelElement.innerText : selectedModelValue;
-            }
+                let selectedModel = "Unknown Model";
+                let selectedModelValue = "";
 
-            if (selectedModelValue === 'llama') {
-                lambdaVal = 0.0;
-            }
+                const selectedModelOption = document.querySelector('input[name="model-selection"]:checked');
+                if (selectedModelOption) {
+                    selectedModelValue = selectedModelOption.value;
+                    const labelElement = document.querySelector(`label[for="${selectedModelOption.id}"]`);
+                    selectedModel = labelElement ? labelElement.innerText : selectedModelValue;
+                }
 
-            // Create Card
-            const cardDiv = document.createElement('div');
-            cardDiv.className = 'result-card';
-            
-            const headerDiv = document.createElement('div');
-            headerDiv.className = 'result-header';
-            headerDiv.innerHTML = `
-                <span class="model-badge">${selectedModel} (λ=${lambdaVal})</span>
-                <button class="delete-btn" title="Remove">&times;</button>
-            `;
-            
-            headerDiv.querySelector('.delete-btn').addEventListener('click', () => {
-                cardDiv.remove();
-            });
+                if (selectedModelValue === 'llama') {
+                    lambdaVal = 0.0;
+                }
 
-            const contentDiv = document.createElement('div');
-            // APPLYING NEW TYPOGRAPHY CLASS HERE
-            contentDiv.className = 'generated-text'; 
-            contentDiv.innerHTML = '<span class="cursor"></span>';
+                // Create Card
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'result-card';
 
-            cardDiv.appendChild(headerDiv);
-            cardDiv.appendChild(contentDiv);
-            
-            // prepend adds new cards to the TOP of the list
-            historyContainer.prepend(cardDiv); 
-
-            generateBtn.textContent = "Stop Generation";
-            generateBtn.classList.add('stop-mode');
-            errorDiv.textContent = "";
-            
-            controller = new AbortController();
-
-            try {
-                const response = await fetch(`${baseUrl}/generate_stream`, {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'ngrok-skip-browser-warning': 'true' 
-                    },
-                    body: JSON.stringify({ prompt: prompt, lambda_val: lambdaVal, model_name: selectedModelValue }),
-                    signal: controller.signal
+                const headerDiv = document.createElement('div');
+                headerDiv.className = 'result-header';
+                headerDiv.innerHTML = `
+                    <span class="model-badge">${selectedModel} (λ=${lambdaVal})</span>
+                    ${selectedModelValue === 'llama' ? 
+                        '<button class="delete-btn" title="Remove">&times;</button>':
+                        '<div class="btn-container"><button class="highlight-btn" title="Highlight">Highlight Δs</button><button class="delete-btn" title="Remove">&times;</button></div>'
+                    }
+                `;
+                headerDiv.querySelector('.delete-btn').addEventListener('click', () => {
+                    cardDiv.remove();
                 });
 
-                if (!response.ok) throw new Error(`Server Error: ${response.statusText}`);
-
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let fullText = "";
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-
-                    const textChunk = decoder.decode(value, { stream: true });
-                    fullText += textChunk;
-                    contentDiv.innerHTML = fullText + '<span class="cursor"></span>';
-                }
-
-                contentDiv.innerHTML = fullText;
-
-            } catch (err) {
-                if (err.name === 'AbortError') {
-                    contentDiv.innerHTML += ' <span style="color:red; font-size:0.8em;">[STOPPED]</span>';
+                const contentDiv = document.createElement('div');
+                // APPLYING NEW TYPOGRAPHY CLASS HERE
+                contentDiv.className = 'generated-text';
+                contentDiv.innerHTML = '<span class="cursor"></span>';
+                if (selectedModelValue === 'llama') {
+                    contentDiv.id = 'baseDiv';
                 } else {
-                    console.error(err);
-                    errorDiv.textContent = "Error: " + err.message;
-                    contentDiv.innerHTML += ` <br><span class="error">[Error: ${err.message}]</span>`;
+                    contentDiv.classList.add('targetDiv')
+                    headerDiv.querySelector('.highlight-btn').addEventListener('click', function() {
+                        contentDiv.classList.toggle('highlight');
+                    });
                 }
-            } finally {
-                controller = null;
-                generateBtn.textContent = "Generate Text";
-                generateBtn.classList.remove('stop-mode');
+
+                cardDiv.appendChild(headerDiv);
+                cardDiv.appendChild(contentDiv);
+
+                // prepend adds new cards to the TOP of the list
+                historyContainer.prepend(cardDiv);
+
+                generateBtn.textContent = "Stop Generation";
+                generateBtn.classList.add('stop-mode');
+                errorDiv.textContent = "";
+
+                controller = new AbortController();
+
+                try {
+                    const response = await fetch(`${baseUrl}/generate_stream`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'ngrok-skip-browser-warning': 'true'
+                        },
+                        body: JSON.stringify({ prompt: prompt, lambda_val: lambdaVal, model_name: selectedModelValue }),
+                        signal: controller.signal
+                    });
+
+                    if (!response.ok) throw new Error(`Server Error: ${response.statusText}`);
+
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let fullText = "";
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        const textChunk = decoder.decode(value, { stream: true });
+                        fullText += textChunk;
+                        contentDiv.innerHTML = fullText + '<span class="cursor"></span>';
+                    }
+
+                    contentDiv.innerHTML = fullText;
+
+                } catch (err) {
+                    if (err.name === 'AbortError') {
+                        contentDiv.innerHTML += ' <span style="color:red; font-size:0.8em;">[STOPPED]</span>';
+                    } else {
+                        console.error(err);
+                        errorDiv.textContent = "Error: " + err.message;
+                        contentDiv.innerHTML += ` <br><span class="error">[Error: ${err.message}]</span>`;
+                    }
+                } finally {
+                    controller = null;
+                    generateBtn.textContent = "Generate Text";
+                    generateBtn.classList.remove('stop-mode');
+                    // After generation, highlight differences if applicable
+                    if (selectedModelValue !== 'llama') {
+                        const baseDiv = document.getElementById('baseDiv');
+                        if (baseDiv) {
+                            highlightDifferences(baseDiv, contentDiv);
+                        }
+                    }
+                }
             }
-        });
-    </script>
-</body>
+
+            generateBtn.addEventListener('click', () => sendPrompt());
+
+            promptInput.addEventListener('keydown', (e) => {
+                    // Check if Enter was pressed WITHOUT Shift
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault(); // Prevents the default behavior (new line)
+                    sendPrompt();      // Triggers the action
+                }
+            });
+
+            const highlightDifferences = (baseDiv, targetDiv) => {
+                console.log("Highlighting differences...");
+                console.log(targetDiv);
+                
+                console.log(baseDiv)
+                // 1. Helper function to normalize text (remove punctuation, lowercase)
+                // This effectively creates your "tokens" for comparison
+                const cleanWord = (word) => {
+                    return word.toLowerCase().replace(/[.,/#!$%^&*;:{}=\-_`~()]/g, "");
+                };
+
+                // 2. Create the Set of base words
+                // We split by whitespace (/\s+/) to handle multiple spaces/tabs
+                const baseText = baseDiv.innerText;
+                const baseSet = new Set(
+                    baseText.split(/\s+/).map(cleanWord)
+                );
+
+                // 3. Process the Target Text
+                const targetText = targetDiv.innerText;
+                const targetWords = targetText.split(/\s+/);
+
+                // 4. Map the words to HTML
+                const newHtml = targetWords.map(originalWord => {
+                    // Compare the cleaned version, but print the original version
+                    // (preserves casing and punctuation in the visual output)
+                    const lookupKey = cleanWord(originalWord);
+
+                    // Skip empty strings (caused by double spaces)
+                    if (!lookupKey) return originalWord;
+
+                    if (!baseSet.has(lookupKey)) {
+                        // If it's not in the base set, wrap it
+                        return `<span class="highlight-unique">${originalWord}</span>`;
+                    }
+                    return originalWord;
+                }).join(' '); // Join them back into a sentence
+
+                // 5. Update the DOM
+                targetDiv.innerHTML = newHtml;
+            }
+        </script>
+    </body>
 </html>
